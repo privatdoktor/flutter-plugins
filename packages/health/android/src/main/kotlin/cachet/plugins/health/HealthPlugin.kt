@@ -93,7 +93,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
                 Log.d("FLUTTER_HEALTH", "Access Granted!")
                 mResult?.success(true)
             } else if (resultCode == Activity.RESULT_CANCELED) {
-                Log.d("FLUTTER_HEALTH", "Access Denied!")
+                Log.d("FLUTTER_HEALTH", "Access Denied!!!!!")
                 mResult?.success(false);
             }
         }
