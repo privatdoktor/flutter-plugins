@@ -20,27 +20,26 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import com.google.android.gms.fitness.data.*
 
-const val GOOGLE_FIT_PERMISSIONS_REQUEST_CODE = 1111
+const val GOOGLE_FIT_PERMISSIONS_REQUEST_CODE = 56545753
 
-class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodCallHandler, ActivityResultListener, Result {
+class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodCallHandler, ActivityResultListener {
 
-    private var result: Result? = null
-    private var handler: Handler? = null
+    private val BODY_FAT_PERCENTAGE = "BODY_FAT_PERCENTAGE"
+    private val HEIGHT = "HEIGHT"
+    private val WEIGHT = "WEIGHT"
+    private val STEPS = "STEPS"
+    private val ACTIVE_ENERGY_BURNED = "ACTIVE_ENERGY_BURNED"
+    private val HEART_RATE = "HEART_RATE"
+    private val BODY_TEMPERATURE = "BODY_TEMPERATURE"
+    private val BLOOD_PRESSURE_SYSTOLIC = "BLOOD_PRESSURE_SYSTOLIC"
+    private val BLOOD_PRESSURE_DIASTOLIC = "BLOOD_PRESSURE_DIASTOLIC"
+    private val BLOOD_OXYGEN = "BLOOD_OXYGEN"
+    private val BLOOD_GLUCOSE = "BLOOD_GLUCOSE"
+    private val MOVE_MINUTES = "MOVE_MINUTES"
+    private val DISTANCE_DELTA = "DISTANCE_DELTA"
 
-    private var BODY_FAT_PERCENTAGE = "BODY_FAT_PERCENTAGE"
-    private var HEIGHT = "HEIGHT"
-    private var WEIGHT = "WEIGHT"
-    private var STEPS = "STEPS"
-    private var ACTIVE_ENERGY_BURNED = "ACTIVE_ENERGY_BURNED"
-    private var HEART_RATE = "HEART_RATE"
-    private var BODY_TEMPERATURE = "BODY_TEMPERATURE"
-    private var BLOOD_PRESSURE_SYSTOLIC = "BLOOD_PRESSURE_SYSTOLIC"
-    private var BLOOD_PRESSURE_DIASTOLIC = "BLOOD_PRESSURE_DIASTOLIC"
-    private var BLOOD_OXYGEN = "BLOOD_OXYGEN"
-    private var BLOOD_GLUCOSE = "BLOOD_GLUCOSE"
-    private var MOVE_MINUTES = "MOVE_MINUTES"
-    private var DISTANCE_DELTA = "DISTANCE_DELTA"
-
+    private var mResult: Result? = null
+    private var mOptionsToRegister: FitnessOptions? = null
 
     companion object {
         @JvmStatic
@@ -52,41 +51,6 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         }
     }
 
-
-    /// DataTypes to register
-    private val fitnessOptions = FitnessOptions.builder()
-            .addDataType(keyToHealthDataType(BODY_FAT_PERCENTAGE), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(HEIGHT), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(WEIGHT), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(STEPS), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(ACTIVE_ENERGY_BURNED), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(HEART_RATE), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(BODY_TEMPERATURE), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(BLOOD_PRESSURE_SYSTOLIC), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(BLOOD_OXYGEN), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(BLOOD_GLUCOSE), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(MOVE_MINUTES), FitnessOptions.ACCESS_READ)
-            .addDataType(keyToHealthDataType(DISTANCE_DELTA), FitnessOptions.ACCESS_READ)
-            .build()
-
-
-    override fun success(p0: Any?) {
-        handler?.post(
-                Runnable { result?.success(p0) })
-    }
-
-    override fun notImplemented() {
-        handler?.post(
-                Runnable { result?.notImplemented() })
-    }
-
-    override fun error(
-            errorCode: String, errorMessage: String?, errorDetails: Any?) {
-        handler?.post(
-                Runnable { result?.error(errorCode, errorMessage, errorDetails) })
-    }
-
-
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         if (requestCode == GOOGLE_FIT_PERMISSIONS_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK) {
@@ -96,11 +60,14 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
                 Log.d("FLUTTER_HEALTH", "Access Denied!!!!!")
                 mResult?.success(false);
             }
+            Log.d("FLUTTER_HEALTH", "onActivityResult -> " + mOptionsToRegister?.getImpliedScopes().toString())
+            mResult = null
+            mOptionsToRegister = null
+            return true
         }
         return false
     }
 
-    private var mResult: Result? = null
 
     private fun keyToHealthDataType(type: String): DataType {
         return when (type) {
@@ -213,12 +180,15 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
     /// Called when the "requestAuthorization" is invoked from Flutter 
     private fun requestAuthorization(call: MethodCall, result: Result) {
         val optionsToRegister = callToHealthTypes(call)
-        mResult = result
+        
+        Log.d("FLUTTER_HEALTH::DEBUG", optionsToRegister.getImpliedScopes().toString())
 
         val isGranted = GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(activity), optionsToRegister)
 
         /// Not granted? Ask for permission
         if (!isGranted) {
+            mResult = result
+            mOptionsToRegister = optionsToRegister
             GoogleSignIn.requestPermissions(
                     activity,
                     GOOGLE_FIT_PERMISSIONS_REQUEST_CODE,
@@ -227,7 +197,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         }
         /// Permission already granted
         else {
-            mResult?.success(true)
+            result.success(true)
         }
     }
 
